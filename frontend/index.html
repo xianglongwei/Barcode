@@ -41,7 +41,7 @@
                   <el-input-number 
                     v-model="form.width" 
                     :min="20" 
-                    :max="190"
+                    :max="pageOrientation === 'portrait' ? 190 : 277"
                     :step="5"
                     controls-position="right"
                   />
@@ -100,8 +100,16 @@
                   <span class="unit-label">mm</span>
                 </el-form-item>
 
+                <el-form-item label="纸张方向">
+                  <el-radio-group v-model="pageOrientation">
+                    <el-radio label="portrait">纵向</el-radio>
+                    <el-radio label="landscape">横向</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+
                 <el-form-item>
                   <el-button type="primary" @click="printBarcode">打印条码</el-button>
+                <!--  <el-button type="info" @click="previewPrint">预览打印</el-button> -->
                 </el-form-item>
               </el-form>
             </div>
