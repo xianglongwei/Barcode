@@ -22,6 +22,9 @@ const app = createApp({
     const borderColor = ref('black')
     const borderWidth = ref(0.2)
 
+    // 添加纸张方向的响应式变量
+    const pageOrientation = ref('portrait')  // 默认纵向
+
     // 添加边框样式计算方法
     const getBorderStyle = () => {
       if (borderStyle.value === 'none') {
@@ -97,7 +100,7 @@ const app = createApp({
       }
     }
 
-    // 监听表单��化
+    // 监听表单化
     watch(
       () => ({...form, mode: inputMode.value, batchInput: batchInput.value}),
       async () => {
@@ -147,9 +150,13 @@ const app = createApp({
       const A4_HEIGHT = 297
       const MARGIN = 10  // 页边距 10mm
       
+      // 根据方向设置实际宽高
+      const pageWidth = pageOrientation.value === 'portrait' ? A4_WIDTH : A4_HEIGHT
+      const pageHeight = pageOrientation.value === 'portrait' ? A4_HEIGHT : A4_WIDTH
+      
       // 计算可用打印区域
-      const printableWidth = A4_WIDTH - (MARGIN * 2)
-      const printableHeight = A4_HEIGHT - (MARGIN * 2)
+      const printableWidth = pageWidth - (MARGIN * 2)
+      const printableHeight = pageHeight - (MARGIN * 2)
 
       // 计算每个条码实际占用的空间（包括文本和间距）
       const gapSize = 5  // 条码之间的间距（mm）
@@ -160,7 +167,7 @@ const app = createApp({
       const rowsPerPage = Math.floor(printableHeight / (itemHeight + gapSize))
       const colsPerPage = Math.floor(printableWidth / (form.width + gapSize))
       
-      // 使用实际可放置的数量，但不超过用户设置的每行��量
+      // 使用实际可放置的数量，但不超过用户设置的每行量
       const actualPerRow = Math.min(barcodePerRow.value, colsPerPage)
       const itemsPerPage = actualPerRow * rowsPerPage
 
@@ -177,7 +184,7 @@ const app = createApp({
             <title>打印条码</title>
             <style>
               @page {
-                size: A4;
+                size: A4 ${pageOrientation.value};
                 margin: ${MARGIN}mm;
               }
               body {
@@ -268,6 +275,175 @@ const app = createApp({
       printWindow.print()
     }
 
+    // 预览打印
+    const previewPrint = () => {
+      const previewWindow = window.open('', '_blank')
+      const urls = inputMode.value === 'single' 
+        ? Array(printCount.value).fill(barcodeUrl.value)
+        : batchBarcodeUrls.value
+      const texts = inputMode.value === 'single'
+        ? Array(printCount.value).fill(form.text)
+        : batchTexts.value
+      
+      // A4 纸张尺寸（单位：mm）
+      const A4_WIDTH = 210
+      const A4_HEIGHT = 297
+      const MARGIN = 10
+      
+      // 根据方向设置实际宽高
+      const pageWidth = pageOrientation.value === 'portrait' ? A4_WIDTH : A4_HEIGHT
+      const pageHeight = pageOrientation.value === 'portrait' ? A4_HEIGHT : A4_WIDTH
+      
+      // 计算可用打印区域
+      const printableWidth = pageWidth - (MARGIN * 2)
+      const printableHeight = pageHeight - (MARGIN * 2)
+
+      // 计算每个条码实际占用的空间
+      const gapSize = 5
+      const textHeight = 5
+      const itemHeight = form.height + textHeight + 2
+
+      // 计算每页能放置的行数和列数
+      const rowsPerPage = Math.floor(printableHeight / (itemHeight + gapSize))
+      const colsPerPage = Math.floor(printableWidth / (form.width + gapSize))
+      
+      const actualPerRow = Math.min(barcodePerRow.value, colsPerPage)
+      const itemsPerPage = actualPerRow * rowsPerPage
+
+      const borderStyles = borderStyle.value !== 'none' 
+        ? `border: ${borderWidth.value}mm ${borderStyle.value} ${borderColor.value};`
+        : '';
+
+      previewWindow.document.write(`
+        <html>
+          <head>
+            <title>打印预览</title>
+            <style>
+              @page {
+                size: A4 ${pageOrientation.value};
+                margin: ${MARGIN}mm;
+              }
+              body {
+                margin: 0;
+                padding: 20px;
+                background-color: #f0f0f0;
+                min-height: 100vh;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 20px;
+              }
+              .preview-page {
+                background: white;
+                box-shadow: 0 0 10px rgba(0,0,0,0.1);
+                width: ${pageWidth}mm;
+                height: ${pageHeight}mm;
+                position: relative;
+                padding: ${MARGIN}mm;
+                box-sizing: border-box;
+              }
+              .barcode-container {
+                display: grid;
+                grid-template-columns: repeat(${actualPerRow}, 1fr);
+                gap: ${gapSize}mm;
+                justify-content: start;
+              }
+              .barcode-item {
+                width: ${form.width}mm;
+                height: ${itemHeight}mm;
+                text-align: center;
+                ${borderStyles}
+                padding: ${gapSize/2}mm;
+                box-sizing: border-box;
+                position: relative;
+                background: white;
+              }
+              .barcode-text {
+                position: absolute;
+                bottom: 1mm;
+                left: ${gapSize/2}mm;
+                right: ${gapSize/2}mm;
+                font-size: 8pt;
+                text-align: center;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+              }
+              .barcode-image-container {
+                height: ${form.height}mm;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+              }
+              img {
+                max-width: 100%;
+                max-height: ${form.height}mm;
+                object-fit: contain;
+              }
+              .preview-controls {
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: white;
+                padding: 10px;
+                border-radius: 4px;
+                box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1);
+              }
+              .print-button {
+                background: #409EFF;
+                color: white;
+                border: none;
+                padding: 8px 15px;
+                border-radius: 4px;
+                cursor: pointer;
+              }
+              .print-button:hover {
+                background: #66b1ff;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="preview-controls">
+              <button class="print-button" onclick="window.print()">打印</button>
+            </div>
+            ${urls.reduce((html, url, i) => {
+              if (i % itemsPerPage === 0) {
+                if (i > 0) {
+                  html += '</div></div>'
+                }
+                html += `<div class="preview-page">
+                          <div class="barcode-container">`
+              }
+              
+              html += `
+                <div class="barcode-item">
+                  <div class="barcode-image-container">
+                    <img src="${url}" />
+                  </div>
+                  <div class="barcode-text">${texts[i]}</div>
+                </div>
+              `
+              
+              if (i === urls.length - 1) {
+                html += '</div></div>'
+              }
+              
+              return html
+            }, '')}
+          </body>
+        </html>
+      `)
+      previewWindow.document.close()
+    }
+
+    // 监听纸张方向变化
+    watch(pageOrientation, (newOrientation) => {
+      const maxWidth = newOrientation === 'portrait' ? 190 : 277
+      if (form.width > maxWidth) {
+        form.width = maxWidth  // 如果当前宽度超过新的最大值，则自动调整
+      }
+    })
+
     return {
       form,
       inputMode,
@@ -283,6 +459,8 @@ const app = createApp({
       borderColor,
       borderWidth,
       getBorderStyle,
+      previewPrint,
+      pageOrientation,
     }
   }
 })
