@@ -21,6 +21,13 @@
                   <el-input v-model="form.text" placeholder="请输入要生成的条码内容"></el-input>
                 </el-form-item>
                 
+                <el-form-item label="码类型">
+                  <el-radio-group v-model="codeType">
+                    <el-radio label="barcode">条形码</el-radio>
+                    <el-radio label="qrcode">二维码</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                
                 <el-form-item label="批量输入">
                   <el-input
                     type="textarea"
@@ -41,7 +48,7 @@
                   <el-input-number 
                     v-model="form.width" 
                     :min="20" 
-                    :max="pageOrientation === 'portrait' ? 190 : 277"
+                    :max="codeType === 'qrcode' ? 100 : (pageOrientation === 'portrait' ? 190 : 277)"
                     :step="5"
                     controls-position="right"
                   />
@@ -51,9 +58,10 @@
                   <el-input-number 
                     v-model="form.height" 
                     :min="10" 
-                    :max="277"
+                    :max="codeType === 'qrcode' ? 100 : 277"
                     :step="5"
                     controls-position="right"
+                    :disabled="codeType === 'qrcode'"
                   />
                 </el-form-item>
 

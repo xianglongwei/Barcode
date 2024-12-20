@@ -2,4 +2,5 @@ fastapi
 uvicorn
 python-barcode
 Pillow
-python-multipart 
+python-multipart
+qrcode 

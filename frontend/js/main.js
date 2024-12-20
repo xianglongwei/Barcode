@@ -8,6 +8,9 @@ const app = createApp({
       height: 60
     })
 
+    // 添加二维码默认尺寸
+    const qrDefaultSize = 50  // 二维码默认尺寸 50mm
+
     const inputMode = ref('single')  // 输入模式：single 或 batch
     const batchInput = ref('')       // 批量输入的文本
     const batchTexts = ref([])       // 批量处理的文本数组
@@ -24,6 +27,20 @@ const app = createApp({
 
     // 添加纸张方向的响应式变量
     const pageOrientation = ref('portrait')  // 默认纵向
+
+    // 添加码类型变量
+    const codeType = ref('barcode')  // 默认为条形码
+
+    // 监听码类型变化，自动调整尺寸
+    watch(codeType, (newType) => {
+      if (newType === 'qrcode') {
+        form.width = qrDefaultSize
+        form.height = qrDefaultSize
+      } else {
+        form.width = 190
+        form.height = 60
+      }
+    })
 
     // 添加边框样式计算方法
     const getBorderStyle = () => {
@@ -72,7 +89,8 @@ const app = createApp({
           body: JSON.stringify({
             text: text,
             width: widthInPx,
-            height: heightInPx
+            height: heightInPx,
+            codeType: codeType.value  // 添加码类型
           })
         })
         
@@ -100,16 +118,32 @@ const app = createApp({
       }
     }
 
-    // 监听表单化
+    // 修改表单监听
     watch(
-      () => ({...form, mode: inputMode.value, batchInput: batchInput.value}),
-      async () => {
-        if (inputMode.value === 'single') {
-          if (form.text) {
-            barcodeUrl.value = await generateBarcode(form.text)
+      () => ({
+        text: form.text,
+        mode: inputMode.value,
+        batchInput: batchInput.value,
+        codeType: codeType.value,
+        width: form.width,
+        height: form.height
+      }),
+      async (newVal, oldVal) => {
+        // 当文本、模式、批量输入、码类型改变，或者尺寸改变时都重新生成
+        if (newVal.text !== oldVal.text || 
+            newVal.mode !== oldVal.mode || 
+            newVal.batchInput !== oldVal.batchInput || 
+            newVal.codeType !== oldVal.codeType ||
+            newVal.width !== oldVal.width ||    // 添加宽度变化检测
+            newVal.height !== oldVal.height     // 添加高度变化检测
+        ) {
+          if (inputMode.value === 'single') {
+            if (form.text) {
+              barcodeUrl.value = await generateBarcode(form.text)
+            }
+          } else {
+            await generateBatchBarcodes()
           }
-        } else {
-          await generateBatchBarcodes()
         }
       },
       { deep: true }
@@ -148,7 +182,7 @@ const app = createApp({
       // A4 纸张尺寸（单位：mm）
       const A4_WIDTH = 210
       const A4_HEIGHT = 297
-      const MARGIN = 10  // 页边距 10mm
+      const MARGIN = 10
       
       // 根据方向设置实际宽高
       const pageWidth = pageOrientation.value === 'portrait' ? A4_WIDTH : A4_HEIGHT
@@ -158,93 +192,99 @@ const app = createApp({
       const printableWidth = pageWidth - (MARGIN * 2)
       const printableHeight = pageHeight - (MARGIN * 2)
 
-      // 计算每个条码实际占用的空间（包括文本和间距）
-      const gapSize = 5  // 条码之间的间距（mm）
-      const textHeight = 5  // 文本高度（mm）
-      const itemHeight = form.height + textHeight + 2  // 条码高度 + 文本高度 + 边距
+      // 根据码类型设置不同的间距和布局
+      const gapSize = codeType.value === 'qrcode' ? 10 : 5  // 二维码间距更大
+      const textHeight = 5
+      const itemHeight = form.height + textHeight + 2
 
-      // 计算每页能放置的行数和列数
+      // 为二维码优化每行数量计算
+      let actualPerRow
+      if (codeType.value === 'qrcode') {
+        // 二维码根据可用宽度自动计算最佳列数
+        const maxColumns = Math.floor(printableWidth / (form.width + gapSize))
+        actualPerRow = Math.min(maxColumns, 4)  // 最多4列，避免太小
+      } else {
+        // 条形码使用用户设置的列数
+        const colsPerPage = Math.floor(printableWidth / (form.width + gapSize))
+        actualPerRow = Math.min(barcodePerRow.value, colsPerPage)
+      }
+
+      // 计算每页行数
       const rowsPerPage = Math.floor(printableHeight / (itemHeight + gapSize))
-      const colsPerPage = Math.floor(printableWidth / (form.width + gapSize))
-      
-      // 使用实际可放置的数量，但不超过用户设置的每行量
-      const actualPerRow = Math.min(barcodePerRow.value, colsPerPage)
       const itemsPerPage = actualPerRow * rowsPerPage
 
+      // 定义边框样式
       const borderStyles = borderStyle.value !== 'none' 
-        ? `
-          border: ${borderWidth.value}mm ${borderStyle.value} ${borderColor.value};
-          padding: ${gapSize/2}mm;
-        `
+        ? `border: ${borderWidth.value}mm ${borderStyle.value} ${borderColor.value};`
         : '';
+
+      // 生成样式
+      const styles = `
+        @page {
+          size: A4 ${pageOrientation.value};
+          margin: ${MARGIN}mm;
+        }
+        body {
+          margin: 0;
+          padding: 0;
+          width: ${printableWidth}mm;
+        }
+        .barcode-container {
+          display: grid;
+          grid-template-columns: repeat(${actualPerRow}, 1fr);
+          gap: ${gapSize}mm;
+          justify-content: center;
+          padding: ${codeType.value === 'qrcode' ? '10mm 0' : '0'};
+        }
+        .barcode-item {
+          width: ${form.width}mm;
+          height: ${itemHeight}mm;
+          text-align: center;
+          page-break-inside: avoid;
+          ${borderStyles}
+          padding: ${gapSize/2}mm;
+          box-sizing: border-box;
+          position: relative;
+          ${codeType.value === 'qrcode' ? 'margin: 0 auto;' : ''}
+        }
+        .barcode-image-container {
+          height: ${form.height}mm;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        img {
+          ${codeType.value === 'qrcode' 
+            ? `width: ${form.width}mm; height: ${form.height}mm;` 
+            : 'width: 100%; height: 100%;'}
+          object-fit: contain;
+        }
+        .barcode-text {
+          position: absolute;
+          bottom: 1mm;
+          left: ${gapSize/2}mm;
+          right: ${gapSize/2}mm;
+          font-size: ${codeType.value === 'qrcode' ? '10pt' : '8pt'};
+          text-align: center;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+        @media print {
+          .page-break {
+            break-before: page;
+          }
+        }
+      `
 
       printWindow.document.write(`
         <html>
           <head>
             <title>打印条码</title>
-            <style>
-              @page {
-                size: A4 ${pageOrientation.value};
-                margin: ${MARGIN}mm;
-              }
-              body {
-                margin: 0;
-                padding: 0;
-                width: ${printableWidth}mm;
-              }
-              .barcode-container {
-                display: grid;
-                grid-template-columns: repeat(${actualPerRow}, 1fr);
-                gap: 0;
-                justify-content: start;
-              }
-              .barcode-item {
-                width: ${form.width}mm;
-                height: ${itemHeight}mm;
-                text-align: center;
-                page-break-inside: avoid;
-                ${borderStyles}
-                padding: ${gapSize/2}mm;
-                box-sizing: border-box;
-                position: relative;
-              }
-              .barcode-text {
-                position: absolute;
-                bottom: 1mm;
-                left: ${gapSize/2}mm;
-                right: ${gapSize/2}mm;
-                font-size: 8pt;
-                text-align: center;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-              }
-              .barcode-image-container {
-                height: ${form.height}mm;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-              }
-              img {
-                max-width: 100%;
-                max-height: ${form.height}mm;
-                object-fit: contain;
-              }
-              @media print {
-                .page-break {
-                  break-before: page;
-                }
-                ${borderStyle.value !== 'none' ? `
-                  .barcode-item {
-                    ${getBorderStyleForPrint()}
-                  }
-                ` : ''}
-              }
-            </style>
+            <style>${styles}</style>
           </head>
           <body>
             ${urls.reduce((html, url, i) => {
-              // 每页开始时添加新的容器
               if (i % itemsPerPage === 0) {
                 if (i > 0) {
                   html += '</div>'
@@ -261,7 +301,6 @@ const app = createApp({
                 </div>
               `
               
-              // 最后一个条码时关闭容器
               if (i === urls.length - 1) {
                 html += '</div>'
               }
@@ -303,7 +342,7 @@ const app = createApp({
       const textHeight = 5
       const itemHeight = form.height + textHeight + 2
 
-      // 计算每页能放置的行数和列数
+      // 计算每能放置的行数和数
       const rowsPerPage = Math.floor(printableHeight / (itemHeight + gapSize))
       const colsPerPage = Math.floor(printableWidth / (form.width + gapSize))
       
@@ -461,6 +500,7 @@ const app = createApp({
       getBorderStyle,
       previewPrint,
       pageOrientation,
+      codeType,
     }
   }
 })
