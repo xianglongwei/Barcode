@@ -1,0 +1,90 @@
+.barcode-generator {
+    margin: 20px;
+}
+
+.generator-card {
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.layout-container {
+    display: flex;
+    gap: 40px;
+    margin-top: 20px;
+}
+
+.control-panel {
+    flex: 0 0 400px;
+}
+
+.preview-panel {
+    flex: 1;
+    padding: 20px;
+    border-left: 1px solid #eee;
+}
+
+.barcode-preview {
+    margin-top: 20px;
+    text-align: center;
+    padding: 20px;
+}
+
+.barcode-preview img {
+    max-width: 100%;
+    height: auto;
+}
+
+h2 {
+    text-align: center;
+    color: #409EFF;
+    margin-bottom: 30px;
+}
+
+h3 {
+    color: #666;
+    margin-top: 0;
+}
+
+.batch-preview {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 20px;
+    padding: 20px;
+    border: 1px dashed #ddd;
+}
+
+.batch-preview .barcode-item {
+    text-align: center;
+    background-color: #fff;
+}
+
+.batch-preview img {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 10px;
+}
+
+.barcode-text {
+    font-size: 12px;
+    color: #666;
+}
+
+.unit-label {
+    margin-left: 5px;
+    color: #666;
+}
+
+.el-select {
+    width: 100%;
+}
+
+.barcode-item {
+    display: inline-block;
+    position: relative;
+}
+
+.preview-item {
+    padding: 5px;
+    box-sizing: border-box;
+    background-color: #fff;
+} 

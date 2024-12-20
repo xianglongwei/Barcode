@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>条码生成器</title>
+    <link rel="stylesheet" href="element-plus/index.css">
+    <link rel="stylesheet" href="css/style.css">
+  </head>
+  <body>
+    <div id="app">
+      <div class="barcode-generator">
+        <el-card class="generator-card">
+          <h2>条码生成器</h2>
+          
+          <div class="layout-container">
+            <!-- 左侧控制面板 -->
+            <div class="control-panel">
+              <el-form :model="form" label-width="120px">
+                <el-form-item label="条码内容">
+                  <el-input v-model="form.text" placeholder="请输入要生成的条码内容"></el-input>
+                </el-form-item>
+                
+                <el-form-item label="批量输入">
+                  <el-input
+                    type="textarea"
+                    v-model="batchInput"
+                    :rows="4"
+                    placeholder="每行输入一个条码内容"
+                  />
+                </el-form-item>
+
+                <el-form-item>
+                  <el-radio-group v-model="inputMode">
+                    <el-radio :label="'single'">单个条码</el-radio>
+                    <el-radio :label="'batch'">批量条码</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+                
+                <el-form-item label="条码宽度 (mm)">
+                  <el-input-number 
+                    v-model="form.width" 
+                    :min="20" 
+                    :max="190"
+                    :step="5"
+                    controls-position="right"
+                  />
+                </el-form-item>
+                
+                <el-form-item label="条码高度 (mm)">
+                  <el-input-number 
+                    v-model="form.height" 
+                    :min="10" 
+                    :max="277"
+                    :step="5"
+                    controls-position="right"
+                  />
+                </el-form-item>
+
+                <el-form-item label="每行条码数">
+                  <el-input-number 
+                    v-model="barcodePerRow" 
+                    :min="1" 
+                    :max="4" 
+                    :step="1"
+                    controls-position="right"
+                  />
+                </el-form-item>
+
+                <el-form-item label="打印数量">
+                  <el-input-number 
+                    v-model="printCount" 
+                    :min="1" 
+                    :max="100" 
+                    :step="1"
+                    controls-position="right"
+                  />
+                </el-form-item>
+
+                <el-form-item label="边框样式">
+                  <select v-model="borderStyle" class="el-input__inner">
+                    <option value="none">无边框</option>
+                    <option value="solid">实线</option>
+                    <option value="dashed">虚线</option>
+                    <option value="dotted">点线</option>
+                  </select>
+                </el-form-item>
+
+  
+
+                <el-form-item label="边框宽度">
+                  <el-input-number 
+                    v-model="borderWidth" 
+                    :min="0.1" 
+                    :max="2"
+                    :step="0.1"
+                    :precision="1"
+                    controls-position="right"
+                  />
+                  <span class="unit-label">mm</span>
+                </el-form-item>
+
+                <el-form-item>
+                  <el-button type="primary" @click="printBarcode">打印条码</el-button>
+                </el-form-item>
+              </el-form>
+            </div>
+
+            <!-- 右侧预览区域 -->
+            <div class="preview-panel">
+              <h3>预览区域</h3>
+              <div v-if="inputMode === 'single'" class="barcode-preview">
+                <div class="barcode-item preview-item" :style="getBorderStyle()">
+                  <div class="barcode-image-container">
+                    <img :src="barcodeUrl" alt="生成的条码" ref="barcodeImage" v-if="barcodeUrl" />
+                  </div>
+                  <div class="barcode-text" v-if="form.text">{{form.text}}</div>
+                </div>
+              </div>
+              <div v-else class="batch-preview">
+                <div v-for="(url, index) in batchBarcodeUrls" 
+                     :key="index" 
+                     class="barcode-item preview-item"
+                     :style="getBorderStyle()">
+                  <div class="barcode-image-container">
+                    <img :src="url" alt="条码" />
+                  </div>
+                  <div class="barcode-text">{{batchTexts[index]}}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </el-card>
+      </div>
+    </div>
+
+    <script src="vue/vue.global.prod.js"></script>
+    <script src="element-plus/index.full.min.js"></script>
+    <script src="js/main.js"></script>
+  </body>
+</html> 
